@@ -1,0 +1,28 @@
+# .htaccess แบบง่ายสำหรับทดสอบ
+RewriteEngine On
+
+# ป้องกันการเข้าถึงไฟล์สำคัญ
+<Files "config.php">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# ป้องกันการเข้าถึง .htaccess
+<Files ~ "^\.ht">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# URL Rewriting สำหรับ short links
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-l
+RewriteRule ^([a-zA-Z0-9_-]+)/?$ redirect.php?code=$1 [L,QSA]
+
+# PHP Settings (ถ้า server รองรับ)
+<IfModule mod_php.c>
+    php_value upload_max_filesize 50M
+    php_value post_max_size 52M
+    php_value max_execution_time 300
+    php_flag display_errors off
+</IfModule>

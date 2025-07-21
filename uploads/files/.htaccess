@@ -1,0 +1,12 @@
+# Deny direct access to files
+Order Deny,Allow
+Deny from all
+
+# Block PHP execution
+<FilesMatch "\.(?:php|php3|php4|php5|phtml)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Disable directory listing
+Options -Indexes

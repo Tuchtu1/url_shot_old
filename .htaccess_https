@@ -1,0 +1,221 @@
+# เปิดใช้งาน URL Rewriting
+RewriteEngine On
+
+# ป้องกันการเข้าถึงไฟล์ .htaccess
+<Files ~ "^\.ht">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# ป้องกันการเข้าถึงไฟล์ config
+<Files "config.php">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# ป้องกันการเข้าถึงไฟล์ที่ไม่ควรเข้าถึง
+<FilesMatch "\.(sql|log|txt|md|json)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# ป้องกันการเข้าถึงโฟลเดอร์ vendor หรือ node_modules
+RedirectMatch 403 /vendor/
+RedirectMatch 403 /node_modules/
+
+# Force HTTPS (ถ้าต้องการ - ใช้ในโปรดักชั่น)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# ป้องกัน hotlinking รูปภาพ (ตัวเลือก)
+RewriteCond %{HTTP_REFERER} !^$
+RewriteCond %{HTTP_REFERER} !^http(s)?://(www\.)?yourdomain\.com [NC]
+RewriteCond %{HTTP_REFERER} !^http(s)?://(www\.)?localhost [NC]
+RewriteRule \.(jpg|jpeg|png|gif|svg)$ - [NC,F]
+
+# กำหนด Custom Error Pages
+ErrorDocument 404 /index.php
+ErrorDocument 500 /index.php
+
+# URL Rewriting Rules
+# ===================================
+
+# API Routes - ป้องกันไม่ให้ถูก rewrite
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule ^(.*)$ - [L]
+
+# Admin Routes - ป้องกันไม่ให้ถูก rewrite
+RewriteCond %{REQUEST_URI} ^/admin/
+RewriteRule ^(.*)$ - [L]
+
+# Static Files - ป้องกันไม่ให้ถูก rewrite
+RewriteCond %{REQUEST_URI} \.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|pdf|zip|rar)$
+RewriteRule ^(.*)$ - [L]
+
+# Special Folders - ป้องกันไม่ให้ถูก rewrite
+RewriteCond %{REQUEST_URI} ^/(uploads|qr_cache|assets|css|js|fonts|images)/
+RewriteRule ^(.*)$ - [L]
+
+# PHP Files - ป้องกันไม่ให้ถูก rewrite
+RewriteCond %{REQUEST_URI} \.php$
+RewriteRule ^(.*)$ - [L]
+
+# Main URL Shortener Rewrite
+# ===================================
+
+# ตรวจสอบว่าไฟล์จริงไม่มีอยู่
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-l
+
+# ตรวจสอบว่าเป็น short code (ตัวอักษร ตัวเลข _ - เท่านั้น)
+RewriteCond %{REQUEST_URI} ^/([a-zA-Z0-9_-]+)/?$
+
+# ส่งไปยัง redirect.php
+RewriteRule ^([a-zA-Z0-9_-]+)/?$ redirect.php?code=$1 [L,QSA]
+
+# Headers สำหรับ Security
+# ===================================
+<IfModule mod_headers.c>
+    # ป้องกัน Clickjacking
+    Header always set X-Frame-Options "SAMEORIGIN"
+    
+    # ป้องกัน MIME Type Sniffing
+    Header always set X-Content-Type-Options "nosniff"
+    
+    # เปิดใช้งาน XSS Protection
+    Header always set X-XSS-Protection "1; mode=block"
+    
+    # Referrer Policy
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Content Security Policy (ปรับแต่งตามต้องการ)
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://code.jquery.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: https: http:; connect-src 'self' https:;"
+    
+    # Remove Server Header
+    Header always unset Server
+    Header always set Server "Web Server"
+</IfModule>
+
+# Compression
+# ===================================
+<IfModule mod_deflate.c>
+    # Compress HTML, CSS, JavaScript, Text, XML และ fonts
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/vnd.ms-fontobject
+    AddOutputFilterByType DEFLATE application/x-font
+    AddOutputFilterByType DEFLATE application/x-font-opentype
+    AddOutputFilterByType DEFLATE application/x-font-otf
+    AddOutputFilterByType DEFLATE application/x-font-truetype
+    AddOutputFilterByType DEFLATE application/x-font-ttf
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE font/opentype
+    AddOutputFilterByType DEFLATE font/otf
+    AddOutputFilterByType DEFLATE font/ttf
+    AddOutputFilterByType DEFLATE image/svg+xml
+    AddOutputFilterByType DEFLATE image/x-icon
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE application/json
+    
+    # Remove browser bugs
+    BrowserMatch ^Mozilla/4 gzip-only-text/html
+    BrowserMatch ^Mozilla/4\.0[678] no-gzip
+    BrowserMatch \bMSIE !no-gzip !gzip-only-text/html
+    Header append Vary User-Agent
+</IfModule>
+
+# Caching
+# ===================================
+<IfModule mod_expires.c>
+    ExpiresActive on
+    
+    # Images
+    ExpiresByType image/jpg "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType image/x-icon "access plus 1 year"
+    
+    # CSS และ JavaScript
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType application/x-javascript "access plus 1 month"
+    ExpiresByType text/javascript "access plus 1 month"
+    
+    # Fonts
+    ExpiresByType application/vnd.ms-fontobject "access plus 1 month"
+    ExpiresByType font/ttf "access plus 1 month"
+    ExpiresByType font/otf "access plus 1 month"
+    ExpiresByType font/woff "access plus 1 month"
+    ExpiresByType font/woff2 "access plus 1 month"
+    ExpiresByType application/font-woff "access plus 1 month"
+    
+    # Documents
+    ExpiresByType application/pdf "access plus 1 month"
+    ExpiresByType text/plain "access plus 1 month"
+    
+    # HTML
+    ExpiresByType text/html "access plus 1 hour"
+    
+    # JSON และ XML
+    ExpiresByType application/json "access plus 1 hour"
+    ExpiresByType application/xml "access plus 1 hour"
+    ExpiresByType text/xml "access plus 1 hour"
+</IfModule>
+
+# ETag
+<IfModule mod_headers.c>
+    Header unset ETag
+</IfModule>
+FileETag None
+
+# Limit Request Size (ป้องกัน DOS attacks)
+LimitRequestBody 10485760  # 10MB
+
+# Disable Server Signature
+ServerSignature Off
+
+# PHP Settings (ถ้าต้องการ)
+<IfModule mod_php.c>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 10M
+    php_value max_execution_time 300
+    php_value max_input_vars 3000
+    php_flag display_errors off
+    php_flag log_errors on
+</IfModule>
+
+# Redirect WWW to non-WWW (ถ้าต้องการ)
+# RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
+# RewriteRule ^(.*)$ http://%1/$1 [R=301,L]
+
+# Redirect non-WWW to WWW (ถ้าต้องการ)
+# RewriteCond %{HTTP_HOST} !^www\. [NC]
+# RewriteCond %{HTTP_HOST} !^localhost [NC]
+# RewriteRule ^(.*)$ http://www.%{HTTP_HOST}/$1 [R=301,L]
+
+# Block Bad Bots (ตัวอย่าง)
+<IfModule mod_rewrite.c>
+    RewriteCond %{HTTP_USER_AGENT} ^$ [OR]
+    RewriteCond %{HTTP_USER_AGENT} ^(.*?)(libwww-perl|wget|python|nikto|curl|scan|java|winhttp|clshttp|loader) [NC,OR]
+    RewriteCond %{HTTP_USER_AGENT} ^.*(winhttp|HTTrack|clshttp|archiver|loader|email|harvest|extract|grab|miner) [NC]
+    RewriteRule . - [F,L]
+</IfModule>
+
+# Rate Limiting (ต้องมี mod_evasive)
+# <IfModule mod_evasive24.c>
+#     DOSHashTableSize    2048
+#     DOSPageCount        5
+#     DOSPageInterval     1
+#     DOSSiteCount        50
+#     DOSSiteInterval     1
+#     DOSBlockingPeriod   300
+# </IfModule>
